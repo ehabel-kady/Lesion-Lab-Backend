@@ -20,4 +20,5 @@ from brain.views import *
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('create_patient/', CreatePatient.as_view()),
+    path('create_scans/', CreateScans.as_view()),
 ]

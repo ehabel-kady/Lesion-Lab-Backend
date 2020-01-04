@@ -14,17 +14,21 @@ from django.utils import timezone , dateparse
 class CreatePatient(generics.CreateAPIView):
     serializer_class = PatientSerializer
     permission_class = [permissions.AllowAny]
+    message_sucess = "Patient created successfully"
 
-    def perform_create(self, serializer):
+    def perform_create(self, request):
         """perform create method that returns a scan instance"""
-        return serializer.save()
+        id = request.data['patient_id']
+        name = request.data['name']
+        age = request.data['age']
+        weight = request.data['weight']
+        gender = request.data['gender']
+        return Patient.objects.get_or_create(patient_id=id, name=name, age=age, gender=gender, weight=weight)
     def create(self, request, *args, **kwargs):
-        print(request.data)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        patient = self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        state= self.perform_create(request)
+        if state[1]:
+            return Response(self.message_sucess,status=status.HTTP_201_CREATED)    
+        return Response("patient created before",status=status.HTTP_201_CREATED)
 
 
 class CreateScans(generics.CreateAPIView):
@@ -36,4 +40,4 @@ class CreateScans(generics.CreateAPIView):
         return serializer.save()
     def create(self, request, *args, **kwargs):
         print(request.data)
-
+        return Response("patient created before",status=status.HTTP_201_CREATED)
