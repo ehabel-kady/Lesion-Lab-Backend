@@ -37,7 +37,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'brain.apps.BrainConfig'
+    'brain.apps.BrainConfig',
+    'rest_framework'
 ]
 
 MIDDLEWARE = [
