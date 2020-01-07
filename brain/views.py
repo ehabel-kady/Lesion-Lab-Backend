@@ -39,8 +39,8 @@ class CreateScans(generics.CreateAPIView):
         """perform create method that returns a scan instance"""
         return "created"
     def create(self, request, *args, **kwargs):
-        print(request.data)
-        for data in request.data:
-            for img in request.data[data]:
-                img_metadata = pydicom.dcmread(img)
+        # print(request.data)
+        print(request.data['setOne'][0])
+        
+        
         return Response("patient created before",status=status.HTTP_201_CREATED)
