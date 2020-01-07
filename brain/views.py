@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from rest_framework import status
 from rest_framework.response import Response
 from django.utils.translation import gettext as _
-import math
+import math, os, pydicom
 from brain.models import *
 from brain.serializers import *
 from django.utils import timezone , dateparse
@@ -35,9 +35,12 @@ class CreateScans(generics.CreateAPIView):
     serializer_class = ScanSerializer
     permission_class = [permissions.AllowAny]
 
-    def perform_create(self, serializer):
+    def perform_create(self, request):
         """perform create method that returns a scan instance"""
-        return serializer.save()
+        return "created"
     def create(self, request, *args, **kwargs):
         print(request.data)
+        for data in request.data:
+            for img in request.data[data]:
+                img_metadata = pydicom.dcmread(img)
         return Response("patient created before",status=status.HTTP_201_CREATED)

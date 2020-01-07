@@ -25,7 +25,7 @@ class Patient(models.Model):
         return (self.patient_id)
 
 class Scan(models.Model):
-    scan_image = models.FileField(upload_to="scans", null=True, blank=True)
+    scan_image = models.FileField(upload_to="scans/", null=True, blank=True)
     instance_number = models.PositiveIntegerField()
     scan_type = models.CharField(max_length=50)
     patient = models.ForeignKey('brain.Patient', related_name='patient', on_delete=models.CASCADE, null=True, blank=True)
