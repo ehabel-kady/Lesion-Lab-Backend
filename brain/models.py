@@ -26,10 +26,10 @@ class Patient(models.Model):
 
 class Scan(models.Model):
     scan_image = models.FileField(upload_to="scans/", null=True, blank=True)
-    instance_number = models.PositiveIntegerField()
-    scan_type = models.CharField(max_length=50)
+    instance_number = models.PositiveIntegerField(null=True, blank=True)
+    scan_type = models.CharField(max_length=50,null=True, blank=True)
     patient = models.ForeignKey('brain.Patient', related_name='patient', on_delete=models.CASCADE, null=True, blank=True)
-
+    sets  = models.ForeignKey('brain.Set', related_name='scans', on_delete=models.CASCADE,null=True,blank=True)
     class Meta:
         """Meta definition for Scan."""
 
@@ -39,3 +39,34 @@ class Scan(models.Model):
     def __str__(self):
         """Unicode representation of Scan."""
         return (self.id)
+
+class Set(models.Model):
+    """Model definition for Set."""
+    # scan = models.ForeignKey('brain.Scan', related_name='scans', on_delete=models.CASCADE, null=True, blank=True)
+    # TODO: Define fields here
+    name = models.CharField(max_length=20, blank=True, null=True)
+    class Meta:
+        """Meta definition for Set."""
+
+        verbose_name = 'Set'
+        verbose_name_plural = 'Sets'
+
+    def __str__(self):
+        """Unicode representation of Set."""
+        pass
+
+# class SetGroup(models.Model):
+#     """Model definition for SetGroup."""
+#     sets  = models.ForeignKey('brain.Set', related_name='group', on_delete=models.CASCADE,null=True,blank=True)
+#     patient = name = models.ForeignKey('brain.Patient', related_name='', on_delete=models.CASCADE,null=True,blank=True)
+#     # TODO: Define fields here
+
+#     class Meta:
+#         """Meta definition for SetGroup."""
+
+#         verbose_name = 'SetGroup'
+#         verbose_name_plural = 'SetGroups'
+
+#     def __str__(self):
+#         """Unicode representation of SetGroup."""
+#         pass

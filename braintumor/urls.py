@@ -19,11 +19,19 @@ from brain.views import *
 from django.conf import settings # new
 from django.urls import path, include # new
 from django.conf.urls.static import static
+from rest_framework.documentation import include_docs_urls
+from rest_framework_swagger.views import get_swagger_view
+
+schema_view = get_swagger_view(title='Raseedi API')
 
 urlpatterns = [
+    path('swagdoc/', schema_view),
+    path('create_sets/', CreateSets.as_view()),
     path('admin/', admin.site.urls),
     path('create_patient/', CreatePatient.as_view()),
     path('create_scans/', CreateScans.as_view()),
+    path('docs', include_docs_urls(title="Raseedi Restful Api")),
+
 ]
 
 if settings.DEBUG: # new
