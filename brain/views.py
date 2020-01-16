@@ -13,6 +13,10 @@ from zipfile import *
 from django.conf import settings
 from io import BytesIO
 from urllib.request import urlopen
+import pydicom
+from PIL import Image
+import cv2
+import numpy as np
 # Create your views here.
 
 class CreatePatient(generics.CreateAPIView):
@@ -49,9 +53,20 @@ class CreateScans(generics.CreateAPIView):
         
         return Response("patient created before",status=status.HTTP_201_CREATED)
 
+def dicomSort(path_to_scans, file_array):
+        dicom_sorting = {}
+        for file in range(len(file_array)):
+            instance = pydicom.dcmread(path_to_scans + "/" + file_array[file])
+            instance_value = instance.InstanceNumber
+            dicom_sorting[instance_value] = file_array[file]
+        sorted(dicom_sorting.keys())
+        return dicom_sorting
+
+
 class CreateSets(generics.CreateAPIView):
     serializer_class = SetSerializer
     permission_class = [permissions.AllowAny]
+    
     """
         USE CASE
         - The data payload contains the data from zip file uploaded by
@@ -84,6 +99,42 @@ class CreateSets(generics.CreateAPIView):
         os.remove("temp.zip")
         print("Patient Data Uploaded")
 
+        # Navigate to Patient Directory and create images subfolder
+        os.chdir(patient_media)
+        images_dir = patient_media+'/images/'
+        os.mkdir(images_dir)
+        os.chdir(images_dir)
+
+        patient_media_dirs = os.listdir(patient_media)
+
+        # Sorting dicoms by instance numbers
+        for scan_set in patient_media_dirs:
+            if scan_set == 'images':
+                pass
+            else:
+                current_set_path = patient_media+'/'+scan_set
+                sorted_map = dicomSort(current_set_path, os.listdir(current_set_path))
+                # print(sorted_map)
+                # print('======================')
+                indexer = 1
+                for image in sorted(sorted_map.keys()):
+                    # print(sorted_map[image])
+                    # print(current_set_path)
+                    set_dir_path = images_dir+scan_set
+                    if os.path.exists(set_dir_path):
+                        pass
+                    else:
+                        os.mkdir(set_dir_path)
+                    os.chdir(set_dir_path)
+                    ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
+                    naming = str(indexer)+'.png'
+                    cv2.imwrite(naming, ds)
+                    indexer+=1
+
+
+
+
+
         """
         TLDR;
         
@@ -105,7 +156,6 @@ class CreateSets(generics.CreateAPIView):
                 }
         
         """
-
 
         serializer = self.get_serializer(data=request.data,many=True)
         serializer.is_valid(raise_exception=True)
