@@ -2,7 +2,7 @@
 myprojectenv/
 raseedienv/
 envraseedi/
-uploads/
+uploads/*
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
