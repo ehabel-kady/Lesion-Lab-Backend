@@ -84,6 +84,29 @@ class CreateSets(generics.CreateAPIView):
         os.remove("temp.zip")
         print("Patient Data Uploaded")
 
+        """
+        TLDR;
+        
+        - Operate on the files as follows:
+            1. Get the patient gender, ID and other metadata from only one dcm file
+            2. Retreived data is later on sent to the platform as props
+            3. Sort the files based on instanceNumber using dicomSort routine
+            4. Instantiate the patient model with the following
+                {
+                    patient_id
+                    gender
+                    age
+                    weight (if available)
+                    setOne [ [original] [predictions] ]
+                    setTwo [ [original] [predictions] ]
+                    setThree [ [original] [predictions] ]
+                    setFour [ [original] [predictions] ]
+                    
+                }
+        
+        """
+
+
         serializer = self.get_serializer(data=request.data,many=True)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
