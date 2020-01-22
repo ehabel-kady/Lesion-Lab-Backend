@@ -70,6 +70,10 @@ class CreateSets(generics.CreateAPIView):
     permission_class = [permissions.AllowAny]
     
     """
+    IMPORTANT:
+    NEED TO ADD A SNIPPET TO RESIZE THE IMAGES INPUT TO 256x256
+    """
+    """
         USE CASE
         - The data payload contains the data from zip file uploaded by
         the doctor.
@@ -139,6 +143,10 @@ class CreateSets(generics.CreateAPIView):
                         os.mkdir(set_dir_path)
                     os.chdir(set_dir_path)
                     ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
+                    if ds.shape != (256,256):
+                        ds = cv2.resize(ds, dsize=(256,256), interpolation=cv2.INTER_CUBIC)
+                    else:
+                        pass
                     naming = str(indexer)+'.png'
                     cv2.imwrite(naming, ds)
                     indexer+=1
@@ -157,6 +165,10 @@ class CreateSets(generics.CreateAPIView):
                         os.mkdir(set_dir_path)
                     os.chdir(set_dir_path)
                     ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
+                    if ds.shape != (256,256):
+                        ds = cv2.resize(ds, dsize=(256,256), interpolation=cv2.INTER_CUBIC)
+                    else:
+                        pass
                     set_images.append(ds)
                     generatePredictions(model, set_images, indexer)
                     indexer+=1
