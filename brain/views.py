@@ -15,8 +15,10 @@ from io import BytesIO
 from urllib.request import urlopen
 import pydicom
 from PIL import Image
+import shutil
 import cv2
 import numpy as np
+from dl.dln import *
 # Create your views here.
 
 class CreatePatient(generics.CreateAPIView):
@@ -81,6 +83,8 @@ class CreateSets(generics.CreateAPIView):
         os.chdir(settings.BASE_DIR)
         media_dir = settings.BASE_DIR + '/uploads/'
         os.chdir(media_dir)
+        if (request.data[0]["name"].split('.zip')[0]) in os.listdir(media_dir):
+            shutil.rmtree(request.data[0]["name"].split('.zip')[0])
         patient_media = media_dir+request.data[0]["name"].split('.zip')[0]
         os.mkdir(patient_media)
         os.chdir(patient_media)
@@ -101,17 +105,25 @@ class CreateSets(generics.CreateAPIView):
 
         # Navigate to Patient Directory and create images subfolder
         os.chdir(patient_media)
-        images_dir = patient_media+'/images/'
+        os.mkdir('images')
+        images_dir = patient_media+'/images/old/'
+        predictions_dir = patient_media+'/images/new/'
         os.mkdir(images_dir)
+        os.mkdir(predictions_dir)
         os.chdir(images_dir)
 
         patient_media_dirs = os.listdir(patient_media)
+
+        model = UNet()
+        path_to_weights = settings.BASE_DIR + '/dl/weights.h5'
+        model.load_weights(path_to_weights)
 
         # Sorting dicoms by instance numbers
         for scan_set in patient_media_dirs:
             if scan_set == 'images':
                 pass
             else:
+                # Generating the original scans
                 current_set_path = patient_media+'/'+scan_set
                 sorted_map = dicomSort(current_set_path, os.listdir(current_set_path))
                 # print(sorted_map)
@@ -130,8 +142,27 @@ class CreateSets(generics.CreateAPIView):
                     naming = str(indexer)+'.png'
                     cv2.imwrite(naming, ds)
                     indexer+=1
+                
+                # Generating the model predictions
+                current_set_path = patient_media+'/'+scan_set
+                sorted_map = dicomSort(current_set_path, os.listdir(current_set_path))
+                indexer = 1
+                
+                for image in sorted(sorted_map.keys()):
+                    set_images = []
+                    set_dir_path = predictions_dir+scan_set
+                    if os.path.exists(set_dir_path):
+                        pass
+                    else:
+                        os.mkdir(set_dir_path)
+                    os.chdir(set_dir_path)
+                    ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
+                    set_images.append(ds)
+                    generatePredictions(model, set_images, indexer)
+                    indexer+=1
 
 
+        
 
 
 
