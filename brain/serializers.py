@@ -33,19 +33,3 @@ class SetSerializer(serializers.Serializer):
     class Meta:
         model = Set
         fields =('name','scans',)
-
-# class SetGroupSerializer(serializers.Serializer):
-#     sets = SetSerializer(many=True)
-#     def create(self, validated_data):
-#         sets = validated_data.pop('sets')
-#         ser = SetSerializer(data=sets)
-#         ser.is_valid(raise_exception=True)
-#         ser.save()
-#         se = Set.objects.create(**validated_data)
-#         for i in scans:
-#             Scan.objects.create(**i,sets=se)
-#         """Create and return new scan instance"""
-#         return se
-#     class Meta:
-#         model = SetGroup
-#         fields =('sets',)

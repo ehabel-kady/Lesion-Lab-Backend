@@ -10,9 +10,9 @@ class Patient(models.Model):
     """Model Definition for patient"""
     patient_id=models.CharField(max_length=50, unique=True)
     name=models.CharField(max_length=150, null=True, blank=True)
-    age=models.PositiveIntegerField()
-    weight=models.DecimalField(max_digits=7, decimal_places=2)
-    gender=models.CharField(choices=gender_choices,default='None',max_length=10)
+    age=models.PositiveIntegerField(null=True)
+    weight=models.FloatField(null=True)
+    gender=models.CharField(choices=gender_choices,default='None',max_length=10, null=True)
 
     class Meta:
         """Meta definition for Patient."""
@@ -28,6 +28,7 @@ class Scan(models.Model):
     scan_image = models.FileField(upload_to="scans/", null=True, blank=True)
     instance_number = models.PositiveIntegerField(null=True, blank=True)
     scan_type = models.CharField(max_length=50,null=True, blank=True)
+    stage = models.CharField(max_length=10, null=True, blank=True)
     patient = models.ForeignKey('brain.Patient', related_name='patient', on_delete=models.CASCADE, null=True, blank=True)
     sets  = models.ForeignKey('brain.Set', related_name='scans', on_delete=models.CASCADE,null=True,blank=True)
     class Meta:
@@ -38,7 +39,7 @@ class Scan(models.Model):
 
     def __str__(self):
         """Unicode representation of Scan."""
-        return (self.id)
+        return str(self.id)
 
 class Set(models.Model):
     """Model definition for Set."""
@@ -53,20 +54,4 @@ class Set(models.Model):
 
     def __str__(self):
         """Unicode representation of Set."""
-        pass
-
-# class SetGroup(models.Model):
-#     """Model definition for SetGroup."""
-#     sets  = models.ForeignKey('brain.Set', related_name='group', on_delete=models.CASCADE,null=True,blank=True)
-#     patient = name = models.ForeignKey('brain.Patient', related_name='', on_delete=models.CASCADE,null=True,blank=True)
-#     # TODO: Define fields here
-
-#     class Meta:
-#         """Meta definition for SetGroup."""
-
-#         verbose_name = 'SetGroup'
-#         verbose_name_plural = 'SetGroups'
-
-#     def __str__(self):
-#         """Unicode representation of SetGroup."""
-#         pass
+        return self.name

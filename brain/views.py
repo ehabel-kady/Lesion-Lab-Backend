@@ -7,6 +7,7 @@ from rest_framework.response import Response
 from django.utils.translation import gettext as _
 import math, os, pydicom
 from brain.models import *
+from django.http import HttpResponse
 from brain.serializers import *
 from django.utils import timezone , dateparse
 from zipfile import *
@@ -17,7 +18,15 @@ import pydicom
 from PIL import Image
 import cv2
 import numpy as np
+import shutil
+import json
 # Create your views here.
+
+class JSONResponse(HttpResponse):
+    def __init__(self, data, **kwargs):
+        content = JSONRenderer().render(data)
+        kwargs['content_type'] = 'application/json'
+        super(JSONResponse, self).__init__(content,**kwargs)
 
 class CreatePatient(generics.CreateAPIView):
     serializer_class = PatientSerializer
@@ -66,100 +75,67 @@ def dicomSort(path_to_scans, file_array):
 class CreateSets(generics.CreateAPIView):
     serializer_class = SetSerializer
     permission_class = [permissions.AllowAny]
-    
-    """
-        USE CASE
-        - The data payload contains the data from zip file uploaded by
-        the doctor.
-        - Navigate to uploads folder /BASE_DIR/uploads/ (Could be improved by dynamically creating it too.)
-        - Directory for patient created and named after "name" in request payload.
-        - Temp ZIP file created for extraction process
-        - Files extracted
-        - ZIP file deleted
-    """
-    def create(self, request, *args, **kwargs):
+
+    def extrct_data(self, request):
         os.chdir(settings.BASE_DIR)
-        media_dir = settings.BASE_DIR + '/uploads/'
-        os.chdir(media_dir)
-        patient_media = media_dir+request.data[0]["name"].split('.zip')[0]
-        os.mkdir(patient_media)
-        os.chdir(patient_media)
-        print("Navigated to patient media directory")
-        zip_data = request.data[0]["data"]
-        
-        url_zip = urlopen(zip_data)
-        fileNaming = media_dir+"temp.zip"
-        temp_zip = open(fileNaming, "wb")
-        temp_zip.write(url_zip.read())
-        temp_zip.close()
-        zf = ZipFile(fileNaming)
-        zf.extractall()
-        zf.close()
-        os.chdir(media_dir)
+        self.media_dir = settings.BASE_DIR + '/uploads/'
+        os.chdir(self.media_dir)
+        self.patient_media = self.media_dir+request.data[0]["name"].split('.zip')[0]
+        os.mkdir(self.patient_media)
+        os.chdir(self.patient_media)
+        self.zip_data = request.data[0]["data"]
+        self.url_zip = urlopen(self.zip_data)
+        self.fileNaming = self.media_dir+"temp.zip"
+        self.temp_zip = open(self.fileNaming, "wb")
+        self.temp_zip.write(self.url_zip.read())
+        self.temp_zip.close()
+        self.zf = ZipFile(self.fileNaming)
+        self.zf.extractall()
+        self.zf.close()
+        os.chdir(self.media_dir)
         os.remove("temp.zip")
+
+    def create(self, request, *args, **kwargs):
+        self.extrct_data(request)
         print("Patient Data Uploaded")
-
         # Navigate to Patient Directory and create images subfolder
-        os.chdir(patient_media)
-        images_dir = patient_media+'/images/'
-        os.mkdir(images_dir)
-        os.chdir(images_dir)
-
-        patient_media_dirs = os.listdir(patient_media)
-
-        # Sorting dicoms by instance numbers
-        for scan_set in patient_media_dirs:
-            if scan_set == 'images':
-                pass
-            else:
-                current_set_path = patient_media+'/'+scan_set
-                sorted_map = dicomSort(current_set_path, os.listdir(current_set_path))
-                # print(sorted_map)
-                # print('======================')
-                indexer = 1
-                for image in sorted(sorted_map.keys()):
-                    # print(sorted_map[image])
-                    # print(current_set_path)
-                    set_dir_path = images_dir+scan_set
-                    if os.path.exists(set_dir_path):
-                        pass
-                    else:
-                        os.mkdir(set_dir_path)
-                    os.chdir(set_dir_path)
-                    ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
-                    naming = str(indexer)+'.png'
-                    cv2.imwrite(naming, ds)
-                    indexer+=1
-
-
-
-
-
-        """
-        TLDR;
-        
-        - Operate on the files as follows:
-            1. Get the patient gender, ID and other metadata from only one dcm file
-            2. Retreived data is later on sent to the platform as props
-            3. Sort the files based on instanceNumber using dicomSort routine
-            4. Instantiate the patient model with the following
-                {
-                    patient_id
-                    gender
-                    age
-                    weight (if available)
-                    setOne [ [original] [predictions] ]
-                    setTwo [ [original] [predictions] ]
-                    setThree [ [original] [predictions] ]
-                    setFour [ [original] [predictions] ]
-                    
-                }
-        
-        """
-
-        serializer = self.get_serializer(data=request.data,many=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
+        os.chdir(self.patient_media)
+        scans = dict()
+        for r, d, f in os.walk(self.patient_media+'/'+request.data[0]["name"].split('.zip')[0]):
+            for img in f:
+                instance=pydicom.dcmread(r+'/'+img)
+                image=open(r+'/'+img, 'rb')
+                scan_type=instance[0x0008, 0x103e].value
+                patient_name=instance[0x0010,0x0010].value
+                patient_id=instance[0x0010,0x0020].value
+                birth_date=instance[0x0010,0x0030].value
+                sex = instance[0x0010,0x0040].value
+                age=int(instance[0x0010,0x1010].value.split('Y')[0])
+                weight=instance[0x0010,0x1030].value
+                instance_number=instance.InstanceNumber
+                new_path = settings.MEDIA_ROOT+'/scans/'+scan_type+'/'
+                if not os.path.isdir(new_path):
+                    os.mkdir(new_path)
+                if not scan_type in scans:
+                    scans[scan_type] = []
+                os.rename(r+'/'+img, new_path+img)
+                patient, created = Patient.objects.get_or_create(patient_id=patient_id, name=patient_name, gender=sex, age=age)
+                type_scan, created= Set.objects.get_or_create(name=scan_type)
+                Scan.objects.create(scan_image=new_path+img, instance_number=instance_number, sets=type_scan, patient=patient, stage='old')
+        # Sorting dicoms by instance 
+        for scan in scans:
+            scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient).values('scan_image')
+        scan_images = dict()
+        for scan in scans:
+            scan_images[scan]=[]
+            for image in scans[scan]:
+                scan_images[scan].append(image['scan_image'])
+        response_data = {
+            "patient_name": patient_name,
+            "patient_id": patient_id,
+            "gender": sex,
+            "age": age,
+            "scan_images": scan_images
+        }
+        shutil.rmtree(self.patient_media)
+        return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
