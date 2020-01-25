@@ -21,6 +21,8 @@ import cv2
 import numpy as np
 import shutil
 import json
+from dl.dln import *
+
 # Create your views here.
 
 class JSONResponse(HttpResponse):
@@ -98,14 +100,17 @@ class CreateSets(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         self.extrct_data(request)
+        print("MEDIA_DIR: ", self.patient_media)
         print("Patient Data Uploaded")
+        model = UNet()
+        path_to_weights = settings.BASE_DIR + '/dl/weights.h5'
+        model.load_weights(path_to_weights)
         # Navigate to Patient Directory and create images subfolder
         os.chdir(self.patient_media)
         scans = dict()
-        for r, d, f in os.walk(self.patient_media+'/'+request.data[0]["name"].split('.zip')[0]):
+        for r, d, f in os.walk(self.patient_media+'/'):
             for img in f:
                 instance=pydicom.dcmread(r+'/'+img)
-                image=open(r+'/'+img, 'rb')
                 scan_type=instance[0x0008, 0x103e].value
                 patient_name=instance[0x0010,0x0010].value
                 patient_id=instance[0x0010,0x0020].value
@@ -119,18 +124,32 @@ class CreateSets(generics.CreateAPIView):
                     os.mkdir(new_path)
                 if not scan_type in scans:
                     scans[scan_type] = []
+                pixel_array_numpy=instance.pixel_array
+                if pixel_array_numpy.shape != (256,256):
+                    pixel_array_numpy = cv2.resize(pixel_array_numpy, dsize=(256,256), interpolation=cv2.INTER_CUBIC)
                 os.rename(r+'/'+img, new_path+img)
+                img=img.replace('.dcm', '.png')
+                # pixel_array_numpy=instance.pixel_array
+                cv2.imwrite(new_path+img, pixel_array_numpy)
                 patient, created = Patient.objects.get_or_create(patient_id=patient_id, name=patient_name, gender=sex, age=age)
                 type_scan, created= Set.objects.get_or_create(name=scan_type)
                 Scan.objects.create(scan_image=new_path+img, instance_number=instance_number, sets=type_scan, patient=patient, stage='old')
         # Sorting dicoms by instance 
+        set_images=[]
         for scan in scans:
             scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient).values('scan_image')
         scan_images = dict()
         for scan in scans:
+            indexer=1
             scan_images[scan]=[]
             for image in scans[scan]:
-                scan_images[scan].append(image['scan_image'])
+                if '.png' in image['scan_image']:
+                    scan_images[scan].append(image['scan_image'])
+                else:
+                    ds = pydicom.dcmread(current_set_path+"/"+str(sorted_map[image])).pixel_array
+                    set_images.append(ds)
+                    generatePredictions(model, set_images, indexer)
+                    indexer+=1
         response_data = {
             "patient_name": patient_name,
             "patient_id": patient_id,
@@ -138,5 +157,15 @@ class CreateSets(generics.CreateAPIView):
             "age": age,
             "scan_images": scan_images
         }
+        # print(response_data)
         shutil.rmtree(self.patient_media)
-        return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
+<<<<<<< HEAD
+        serializer = self.get_serializer(data=scans)
+        serializer.is_valid()
+        headers = self.get_success_headers(serializer.data)
+        print(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, content_type = 'application/javascript; charset=utf8')
+=======
+        # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
+        return Response("Done", status=status.HTTP_201_CREATED)
+>>>>>>> a5a01eee5d695d9165fe8019387bb1ae8d556629
