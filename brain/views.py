@@ -160,11 +160,16 @@ class CreateSets(generics.CreateAPIView):
         # print(response_data)
         shutil.rmtree(self.patient_media)
 <<<<<<< HEAD
+<<<<<<< HEAD
         serializer = self.get_serializer(data=scans)
         serializer.is_valid()
         headers = self.get_success_headers(serializer.data)
         print(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, content_type = 'application/javascript; charset=utf8')
+=======
+        # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
+        return Response("Done", status=status.HTTP_201_CREATED)
+>>>>>>> a5a01eee5d695d9165fe8019387bb1ae8d556629
 =======
         # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
         return Response("Done", status=status.HTTP_201_CREATED)
