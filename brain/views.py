@@ -98,11 +98,12 @@ class CreateSets(generics.CreateAPIView):
 
     def create(self, request, *args, **kwargs):
         self.extrct_data(request)
+        print("MEDIA_DIR: ", self.patient_media)
         print("Patient Data Uploaded")
         # Navigate to Patient Directory and create images subfolder
         os.chdir(self.patient_media)
         scans = dict()
-        for r, d, f in os.walk(self.patient_media+'/'+request.data[0]["name"].split('.zip')[0]):
+        for r, d, f in os.walk(self.patient_media+'/'):
             for img in f:
                 instance=pydicom.dcmread(r+'/'+img)
                 image=open(r+'/'+img, 'rb')
@@ -139,4 +140,5 @@ class CreateSets(generics.CreateAPIView):
             "scan_images": scan_images
         }
         shutil.rmtree(self.patient_media)
-        return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
+        # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
+        return Response("Done", status=status.HTTP_201_CREATED)
