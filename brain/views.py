@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from django.utils.translation import gettext as _
 import math, os, pydicom
 from brain.models import *
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from brain.serializers import *
 from django.utils import timezone , dateparse
 from zipfile import *
@@ -24,12 +24,6 @@ import json
 from dl.dln import *
 
 # Create your views here.
-
-class JSONResponse(HttpResponse):
-    def __init__(self, data, **kwargs):
-        content = JSONRenderer().render(data)
-        kwargs['content_type'] = 'application/json'
-        super(JSONResponse, self).__init__(content,**kwargs)
 
 class CreatePatient(generics.CreateAPIView):
     serializer_class = PatientSerializer
@@ -112,7 +106,7 @@ class CreateSets(generics.CreateAPIView):
             for img in f:
                 instance=pydicom.dcmread(r+'/'+img)
                 scan_type=instance[0x0008, 0x103e].value
-                patient_name=instance[0x0010,0x0010].value
+                patient_name=request.data[0]["name"].split('.zip')[0]
                 patient_id=instance[0x0010,0x0020].value
                 birth_date=instance[0x0010,0x0030].value
                 sex = instance[0x0010,0x0040].value
@@ -138,7 +132,7 @@ class CreateSets(generics.CreateAPIView):
         # Sorting dicoms by instance 
         set_images=[]
         for scan in scans:
-            scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient).values('scan_image')
+            scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient, stage="old").values('scan_image')
         scan_images = dict()
         list_of_files = dict()
         
@@ -150,40 +144,41 @@ class CreateSets(generics.CreateAPIView):
                     pass
                 else:
                     # list_of_files[scan].append('2')
-                    list_of_files[scan].append(pydicom.dcmread(settings.MEDIA_ROOT+'/scans/old/'+scan+'/'+dcmFile).pixel_array)
+                    list_of_files[scan].append(pydicom.dcmread(settings.MEDIA_ROOT+'/scans/old/'+scan+'/'+dcmFile))
             scan_images[scan]=[]
             for image in scans[scan]:
                 if '.png' in image['scan_image']:
                     scan_images[scan].append(image['scan_image'])
-        # os.chdir(settings.MEDIA_ROOT+'/scans/new/')
-        # print(list_of_files)
+        scan_images_new = dict()
         for scan_set in list_of_files:
-            # print(scan_set)
             os.chdir(settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/')
             indexer=1
+            type_scan=Set.objects.filter(name=scan_set)[0]
+            scan_images_new[scan_set] = []
             for scan_slice in list_of_files[scan_set]:
                 temp = []
-                ds = scan_slice
+                ds = scan_slice.pixel_array
                 temp.append(ds)
-                generatePredictions(model, temp, indexer)
-                indexer+=1
+                instance_number=scan_slice.InstanceNumber
+                generatePredictions(model, temp, scan_slice.InstanceNumber)
+                prediction_path = settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/'+str(instance_number)+'_original.png'
+                scan_images_new[scan_set].append(prediction_path)
+                Scan.objects.create(scan_image=prediction_path, instance_number=instance_number, sets=type_scan, patient=patient, stage='new')
+            
+
 
         response_data = {
-            "patient_name": patient_name,
+            # "patient_name": patient_name,
             "patient_id": patient_id,
             "gender": sex,
             "age": age,
-            "scan_images": scan_images
+            "scan_images_old": scan_images,
+            "scan_images_new": scan_images_new,
         }
-        # print(response_data)
+        print(response_data)
         shutil.rmtree(self.patient_media)
         serializer = self.get_serializer(data=scans)
         serializer.is_valid()
         headers = self.get_success_headers(serializer.data)
         print(serializer.data)
-        return Response(serializer.data, status=status.HTTP_201_CREATED, content_type = 'application/javascript; charset=utf8')
-
-        # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
-        return Response("Done", status=status.HTTP_201_CREATED)
-     # return JSONResponse(json.dumps(response_data), status=status.HTTP_201_CREATED)
-        return Response("Done", status=status.HTTP_201_CREATED)
+        return JsonResponse(json.dumps(response_data), status=status.HTTP_201_CREATED, content_type = 'application/javascript; charset=utf8', safe=False)
