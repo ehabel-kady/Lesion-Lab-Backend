@@ -16,6 +16,7 @@ from io import BytesIO
 from urllib.request import urlopen
 import pydicom
 from PIL import Image
+import shutil
 import cv2
 import numpy as np
 import shutil
