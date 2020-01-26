@@ -72,6 +72,7 @@ def dicomSort(path_to_scans, file_array):
 class CreateSets(generics.CreateAPIView):
     serializer_class = SetSerializer
     permission_class = [permissions.AllowAny]
+    tf.reset_default_graph()
 
     def extrct_data(self, request):
         os.chdir(settings.BASE_DIR)
@@ -93,6 +94,9 @@ class CreateSets(generics.CreateAPIView):
         os.remove("temp.zip")
 
     def create(self, request, *args, **kwargs):
+        Set.objects.all().delete()
+        Scan.objects.all().delete()
+        Patient.objects.all().delete()
         self.extrct_data(request)
         print("MEDIA_DIR: ", self.patient_media)
         print("Patient Data Uploaded")
@@ -102,6 +106,7 @@ class CreateSets(generics.CreateAPIView):
         # Navigate to Patient Directory and create images subfolder
         os.chdir(self.patient_media)
         scans = dict()
+        scan_types = []
         for r, d, f in os.walk(self.patient_media+'/'):
             for img in f:
                 instance=pydicom.dcmread(r+'/'+img)
@@ -110,7 +115,7 @@ class CreateSets(generics.CreateAPIView):
                 patient_id=instance[0x0010,0x0020].value
                 birth_date=instance[0x0010,0x0030].value
                 sex = instance[0x0010,0x0040].value
-                age=int(instance[0x0010,0x1010].value.split('Y')[0])
+                age=instance[0x0010,0x1010].value
                 weight=instance[0x0010,0x1030].value
                 instance_number=instance.InstanceNumber
                 original_path = settings.MEDIA_ROOT+'/scans/old/'+scan_type+'/'
@@ -119,6 +124,7 @@ class CreateSets(generics.CreateAPIView):
                 os.makedirs(prediction_path, exist_ok=True)
                 if not scan_type in scans:
                     scans[scan_type] = []
+                    scan_types.append(scan_type)
                 pixel_array_numpy=instance.pixel_array
                 if pixel_array_numpy.shape != (256,256):
                     pixel_array_numpy = cv2.resize(pixel_array_numpy, dsize=(256,256), interpolation=cv2.INTER_CUBIC)
@@ -132,7 +138,7 @@ class CreateSets(generics.CreateAPIView):
         # Sorting dicoms by instance 
         set_images=[]
         for scan in scans:
-            scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient, stage="old").values('scan_image')
+            scans[scan] = Scan.objects.filter(sets__name=scan, patient=patient, stage="old").order_by('instance_number').values('scan_image')
         scan_images = dict()
         list_of_files = dict()
         
@@ -154,7 +160,7 @@ class CreateSets(generics.CreateAPIView):
             os.chdir(settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/')
             indexer=1
             type_scan=Set.objects.filter(name=scan_set)[0]
-            scan_images_new[scan_set] = []
+            # scan_images_new[scan_set] = []
             for scan_slice in list_of_files[scan_set]:
                 temp = []
                 ds = scan_slice.pixel_array
@@ -162,18 +168,28 @@ class CreateSets(generics.CreateAPIView):
                 instance_number=scan_slice.InstanceNumber
                 generatePredictions(model, temp, scan_slice.InstanceNumber)
                 prediction_path = settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/'+str(instance_number)+'_original.png'
-                scan_images_new[scan_set].append(prediction_path)
+                # scan_images_new[scan_set].append(prediction_path)
                 Scan.objects.create(scan_image=prediction_path, instance_number=instance_number, sets=type_scan, patient=patient, stage='new')
-            
+        scan_images_returned = dict()
+        for scan in scans:
+            scan_images_returned[scan] = []
+            scan_images_new[scan] = Scan.objects.filter(sets__name=scan, patient=patient, stage="new").order_by('instance_number').values('scan_image')
+            for image in scan_images_new[scan]:
+                if '.png' in image['scan_image']:
+                    scan_images_returned[scan].append(image['scan_image'])
 
-
+        print(scans)
         response_data = {
             # "patient_name": patient_name,
             "patient_id": patient_id,
             "gender": sex,
             "age": age,
             "scan_images_old": scan_images,
-            "scan_images_new": scan_images_new,
+            "scan_images_new": scan_images_returned,
+            "type_0":scan_types[0],
+            "type_1":scan_types[1],
+            "type_2":scan_types[2],
+            "type_3":scan_types[3],
         }
         print(response_data)
         shutil.rmtree(self.patient_media)

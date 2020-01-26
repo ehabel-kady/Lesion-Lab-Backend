@@ -162,7 +162,11 @@ def UNet():
 
 def generatePredictions(model, images, imageNum):
   for image in range(len(images)):
-    original_image = np.expand_dims(np.expand_dims(images[image]/np.max(images[image]), axis=0),-1)
+    if images[image].shape != (256,256):
+      newImg = cv2.resize(images[image], dsize=(256,256), interpolation=cv2.INTER_CUBIC)
+    else:
+      newImg = images[image]
+    original_image = np.expand_dims(np.expand_dims(newImg/np.max(newImg), axis=0),-1)
     prediction = model.predict(original_image)
 
     # Saving to pngs for prediction contour mapping

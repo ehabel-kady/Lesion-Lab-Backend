@@ -10,7 +10,7 @@ class Patient(models.Model):
     """Model Definition for patient"""
     patient_id=models.CharField(max_length=50, unique=True)
     name=models.CharField(max_length=150, null=True, blank=True)
-    age=models.PositiveIntegerField(null=True)
+    age=models.CharField(max_length=20, null=True)
     weight=models.FloatField(null=True)
     gender=models.CharField(choices=gender_choices,default='None',max_length=10, null=True)
 
