@@ -100,6 +100,7 @@ class CreateSets(generics.CreateAPIView):
         self.extrct_data(request)
         print("MEDIA_DIR: ", self.patient_media)
         print("Patient Data Uploaded")
+        # Compiling model and loading weights
         model = UNet()
         path_to_weights = settings.BASE_DIR + '/dl/weights.h5'
         model.load_weights(path_to_weights)
@@ -116,6 +117,18 @@ class CreateSets(generics.CreateAPIView):
                 birth_date=instance[0x0010,0x0030].value
                 sex = instance[0x0010,0x0040].value
                 age=instance[0x0010,0x1010].value
+                # First change here after benchmark
+                sop_uid=str(instance[0x0008, 0x0018].value)
+                study_date=str(instance[0x0008, 0x0020].value)
+                slice_spacing=str(instance[0x0018, 0x0088].value)
+                manufacturer=str(instance.Manufacturer)
+                pixel_spacing=str(instance[0x0028, 0x0030].value)
+                organ=str(instance[0x0018, 0x0015].value)
+                slice_thickness=str(instance[0x0018, 0x0050].value)
+                mfs=str(instance[0x0018, 0x0087].value) # Magnetic Field Strength
+                observer_name=str(instance[0x0040, 0xa075].value)
+                p_name=str(instance[0x0040, 0xa123].value)
+                # End of edits
                 weight=instance[0x0010,0x1030].value
                 instance_number=instance.InstanceNumber
                 original_path = settings.MEDIA_ROOT+'/scans/old/'+scan_type+'/'
@@ -190,6 +203,18 @@ class CreateSets(generics.CreateAPIView):
             "type_1":scan_types[1],
             "type_2":scan_types[2],
             "type_3":scan_types[3],
+            "sop_uid":sop_uid,
+            "date":study_date,
+            "weight":weight,
+            "slice_spacng":slice_spacing,
+            "manufacturer":manufacturer,
+            "pixel_spacing":pixel_spacing,
+            "organ":organ,
+            "thickness":slice_thickness,
+            "mf_strength":mfs,
+            "observer":observer_name,
+            "subject":p_name
+
         }
         print(response_data)
         shutil.rmtree(self.patient_media)
