@@ -60,13 +60,15 @@ class CreateScans(generics.CreateAPIView):
         return Response("patient created before",status=status.HTTP_201_CREATED)
 
 def dicomSort(path_to_scans, file_array):
-        dicom_sorting = {}
-        for file in range(len(file_array)):
-            instance = pydicom.dcmread(path_to_scans + "/" + file_array[file])
-            instance_value = instance.InstanceNumber
-            dicom_sorting[instance_value] = file_array[file]
-        sorted(dicom_sorting.keys())
-        return dicom_sorting
+    # print(path_to_scans)
+    dicom_sorting = {}
+    for fileName in range(len(file_array)):
+        # print(pydicom.dcmread(path_to_scans + file_array[filex], force=True))
+        instance = pydicom.dcmread(path_to_scans + file_array[fileName])
+        instance_value = instance.InstanceNumber
+        dicom_sorting[instance_value] = file_array[fileName]
+    sorted(dicom_sorting.keys())
+    return dicom_sorting
 
 
 class CreateSets(generics.CreateAPIView):
@@ -163,26 +165,87 @@ class CreateSets(generics.CreateAPIView):
                     pass
                 else:
                     # list_of_files[scan].append('2')
-                    list_of_files[scan].append(pydicom.dcmread(settings.MEDIA_ROOT+'/scans/old/'+scan+'/'+dcmFile))
+                    list_of_files[scan].append(settings.MEDIA_ROOT+'/scans/old/'+scan+'/'+dcmFile)
             scan_images[scan]=[]
             for image in scans[scan]:
                 if '.png' in image['scan_image']:
                     scan_images[scan].append(image['scan_image'])
         scan_images_new = dict()
-        for scan_set in list_of_files:
-            os.chdir(settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/')
-            indexer=1
-            type_scan=Set.objects.filter(name=scan_set)[0]
-            # scan_images_new[scan_set] = []
-            for scan_slice in list_of_files[scan_set]:
-                temp = []
-                ds = scan_slice.pixel_array
-                temp.append(ds)
-                instance_number=scan_slice.InstanceNumber
-                generatePredictions(model, temp, scan_slice.InstanceNumber)
-                prediction_path = settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/'+str(instance_number)+'_original.png'
-                # scan_images_new[scan_set].append(prediction_path)
-                Scan.objects.create(scan_image=prediction_path, instance_number=instance_number, sets=type_scan, patient=patient, stage='new')
+        # Modifying in predictions start here
+        # ----------------------------------------------------------
+        sorted_file_lists = dict()
+        for scan_set in scans:
+            path_to_set = settings.MEDIA_ROOT+'/scans/old/'+scan_set+'/'
+            set_files = os.listdir(path_to_set)
+            set_files_final = []
+            for filedata in set_files:
+                if '.dcm' in filedata:
+                    set_files_final.append(filedata)
+                else:
+                    pass
+            
+            sorted_file_lists[scan_set] = dicomSort(path_to_set, set_files_final)
+        
+        path_array = []
+        path_array_old = []
+        types_scans = []
+        for paths in sorted_file_lists:
+            types_scans.append(paths)
+            path_array.append(settings.MEDIA_ROOT+'/scans/new/'+paths+'/')
+            path_array_old.append(settings.MEDIA_ROOT+'/scans/old/'+paths+'/')
+        
+        # iterator = list(sorted_file_lists.keys())[0]
+        keys_sorted = sorted(sorted_file_lists[types_scans[0]])
+        # print('------------------------')
+        # print(path_array[0])
+        # print('------------------------')
+        # sorted_file_lists[types_scans[0]][3]
+        # print('------------------------')
+        # # x = sorted(sorted_file_lists['AX FLAIR'])
+        
+        # print(path_array[0]+sorted_file_lists[types_scans[0]][3])
+        # print('------------------------')
+        # print('------------------------')
+        # print('------------------------')
+
+
+        for imgKey in range(len(keys_sorted)):
+            dcmArr = []
+
+            im_one = pydicom.dcmread(path_array_old[0]+sorted_file_lists[types_scans[0]][keys_sorted[imgKey]]).pixel_array
+            im_two = pydicom.dcmread(path_array_old[1]+sorted_file_lists[types_scans[1]][keys_sorted[imgKey]]).pixel_array
+            im_three = pydicom.dcmread(path_array_old[2]+sorted_file_lists[types_scans[2]][keys_sorted[imgKey]]).pixel_array
+            im_four = pydicom.dcmread(path_array_old[3]+sorted_file_lists[types_scans[3]][keys_sorted[imgKey]]).pixel_array
+            
+            
+            dcmArr=[im_one, im_two, im_three, im_four]
+            generatePredictions(model, dcmArr, path_array, imgKey)
+            
+            type_one = type_scan=Set.objects.filter(name=types_scans[0])[0]
+            type_two = type_scan=Set.objects.filter(name=types_scans[1])[0]
+            type_three = type_scan=Set.objects.filter(name=types_scans[2])[0]
+            type_four = type_scan=Set.objects.filter(name=types_scans[3])[0]
+            
+            Scan.objects.create(scan_image=path_array[0]+str(imgKey)+'_original.png', instance_number=imgKey, sets=type_one, patient=patient, stage='new')
+            Scan.objects.create(scan_image=path_array[1]+str(imgKey)+'_original.png', instance_number=imgKey, sets=type_two, patient=patient, stage='new')
+            Scan.objects.create(scan_image=path_array[2]+str(imgKey)+'_original.png', instance_number=imgKey, sets=type_three, patient=patient, stage='new')
+            Scan.objects.create(scan_image=path_array[3]+str(imgKey)+'_original.png', instance_number=imgKey, sets=type_four, patient=patient, stage='new')
+
+        # ----------------------------------------------------------
+        # for scan_set in list_of_files:
+        #     os.chdir(settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/')
+        #     indexer=1
+        #     type_scan=Set.objects.filter(name=scan_set)[0]
+        #     # scan_images_new[scan_set] = []
+        #     for scan_slice in list_of_files[scan_set]:
+        #         temp = []
+        #         ds = scan_slice.pixel_array
+        #         temp.append(ds)
+        #         instance_number=scan_slice.InstanceNumber
+        #         generatePredictions(model, temp, scan_slice.InstanceNumber)
+        #         prediction_path = settings.MEDIA_ROOT+'/scans/new/'+scan_set+'/'+str(instance_number)+'_original.png'
+        #         # scan_images_new[scan_set].append(prediction_path)
+        #         Scan.objects.create(scan_image=prediction_path, instance_number=instance_number, sets=type_scan, patient=patient, stage='new')
         scan_images_returned = dict()
         for scan in scans:
             scan_images_returned[scan] = []

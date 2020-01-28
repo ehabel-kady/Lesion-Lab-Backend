@@ -160,41 +160,166 @@ def UNet():
 
 # Prediction Generation
 
-def generatePredictions(model, images, imageNum):
+# def generatePredictions(model, images, imageNum):
+#   for image in range(len(images)):
+#     if images[image].shape != (256,256):
+#       newImg = cv2.resize(images[image], dsize=(256,256), interpolation=cv2.INTER_CUBIC)
+#     else:
+#       newImg = images[image]
+#     original_image = np.expand_dims(np.expand_dims(newImg/np.max(newImg), axis=0),-1)
+#     prediction = model.predict(original_image)
+
+#     # Saving to pngs for prediction contour mapping
+#     naming_original = naming_original = str(imageNum)+'_original.png'
+#     naming = str(imageNum)+'.png'
+#     prediction_to_save = img_to_array(np.squeeze(prediction))
+#     original_to_save = img_to_array(np.squeeze(original_image))
+#     save_img(naming, prediction_to_save)
+#     save_img(naming_original, original_to_save)
+
+#     # Reading saved files for final mapping
+#     # Loading images
+#     img = cv2.imread(naming)
+#     img_original = cv2.imread(naming_original)
+
+#     # Grayscale filters
+#     imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+#     imgray_original = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
+
+#     # Drawing contours on original images
+#     ret, thresh = cv2.threshold(imgray, 190, 255, 0)
+#     contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+#     cv2.drawContours(img_original,contours, -1, (255,255,255), 2)
+
+#     cv2.waitKey(0)
+#     cv2.destroyAllWindows()
+
+#     # Saving the final predictions
+#     os.remove(naming)
+#     os.remove(naming_original)
+#     cv2.imwrite(naming_original, img_original)
+
+
+
+def generatePredictions(model, images, path, imageNum):
+  resized_images = []
+  
+
+
   for image in range(len(images)):
     if images[image].shape != (256,256):
-      newImg = cv2.resize(images[image], dsize=(256,256), interpolation=cv2.INTER_CUBIC)
+      resized_images.append(cv2.resize(images[image], dsize=(256,256), interpolation=cv2.INTER_CUBIC))
     else:
-      newImg = images[image]
-    original_image = np.expand_dims(np.expand_dims(newImg/np.max(newImg), axis=0),-1)
-    prediction = model.predict(original_image)
+      resized_images.append(images[image])
+    
+  original_image_one = np.expand_dims(np.expand_dims(resized_images[0]/np.max(resized_images[0]), axis=0),-1)
+  original_image_two = np.expand_dims(np.expand_dims(resized_images[1]/np.max(resized_images[1]), axis=0),-1)
+  original_image_three = np.expand_dims(np.expand_dims(resized_images[2]/np.max(resized_images[2]), axis=0),-1)
+  original_image_four = np.expand_dims(np.expand_dims(resized_images[3]/np.max(resized_images[3]), axis=0),-1)
+    
+  prediction_one = model.predict(original_image_one)
+  prediction_two = model.predict(original_image_two)
+  prediction_three = model.predict(original_image_three)
+  prediction_four = model.predict(original_image_four)
 
     # Saving to pngs for prediction contour mapping
-    naming_original = naming_original = str(imageNum)+'_original.png'
-    naming = str(imageNum)+'.png'
-    prediction_to_save = img_to_array(np.squeeze(prediction))
-    original_to_save = img_to_array(np.squeeze(original_image))
-    save_img(naming, prediction_to_save)
-    save_img(naming_original, original_to_save)
+  naming_original = str(imageNum)+'_original.png'
+  naming = str(imageNum)+'.png'
+
+  prediction_to_save_one = img_to_array(np.squeeze(prediction_one))
+  prediction_to_save_two = img_to_array(np.squeeze(prediction_two))
+  prediction_to_save_three = img_to_array(np.squeeze(prediction_three))
+  prediction_to_save_four = img_to_array(np.squeeze(prediction_four))
+
+  original_to_save_one = img_to_array(np.squeeze(original_image_one))
+  original_to_save_two = img_to_array(np.squeeze(original_image_two))
+  original_to_save_three = img_to_array(np.squeeze(original_image_three))
+  original_to_save_four = img_to_array(np.squeeze(original_image_four))
+    
+    
+  save_img(path[0]+naming, prediction_to_save_one)
+  save_img(path[1]+naming, prediction_to_save_two)
+  save_img(path[2]+naming, prediction_to_save_three)
+  save_img(path[3]+naming, prediction_to_save_four)
+    
+    
+    
+  save_img(path[0]+naming_original, original_to_save_one)
+  save_img(path[1]+naming_original, original_to_save_two)
+  save_img(path[2]+naming_original, original_to_save_three)
+  save_img(path[3]+naming_original, original_to_save_four)
 
     # Reading saved files for final mapping
     # Loading images
-    img = cv2.imread(naming)
-    img_original = cv2.imread(naming_original)
+  img_one = cv2.imread(path[0]+naming)
+  img_two = cv2.imread(path[1]+naming)
+  img_three = cv2.imread(path[2]+naming)
+  img_four = cv2.imread(path[3]+naming)
 
-    # Grayscale filters
-    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    imgray_original = cv2.cvtColor(img_original, cv2.COLOR_BGR2GRAY)
+  # img_final = np.multiply(np.multiply(img_one, img_two),np.multiply(img_three, img_four))
+  img_f_one = cv2.bitwise_and(img_one, img_two)
+  img_f_two = cv2.bitwise_and(img_three, img_four)
+
+  img_final = cv2.bitwise_and(img_f_one, img_f_two)
+
+  img_original_one = cv2.imread(path[0]+naming_original)
+  img_original_two = cv2.imread(path[1]+naming_original)
+  img_original_three = cv2.imread(path[2]+naming_original)
+  img_original_four = cv2.imread(path[3]+naming_original)
+
+    # Grayscale filters predictions
+  # imgray_one = cv2.cvtColor(img_one, cv2.COLOR_BGR2GRAY)
+  # imgray_two = cv2.cvtColor(img_two, cv2.COLOR_BGR2GRAY)
+  # imgray_three = cv2.cvtColor(img_three, cv2.COLOR_BGR2GRAY)
+  # imgray_four = cv2.cvtColor(img_four, cv2.COLOR_BGR2GRAY)
+
+  imgray_final = cv2.cvtColor(img_final, cv2.COLOR_BGR2GRAY)
+
+    # Grayscale filters originals
+  imgray_original_one = cv2.cvtColor(img_original_one, cv2.COLOR_BGR2GRAY)
+  imgray_original_two = cv2.cvtColor(img_original_two, cv2.COLOR_BGR2GRAY)
+  imgray_original_three = cv2.cvtColor(img_original_three, cv2.COLOR_BGR2GRAY)
+  imgray_original_four = cv2.cvtColor(img_original_four, cv2.COLOR_BGR2GRAY)
 
     # Drawing contours on original images
-    ret, thresh = cv2.threshold(imgray, 127, 255, 0)
-    contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-    cv2.drawContours(img_original,contours, -1, (255,255,255), 2)
+  # ret_one, thresh_one = cv2.threshold(imgray_one, 190, 255, 0)
+  # ret_two, thresh_two = cv2.threshold(imgray_two, 190, 255, 0)
+  # ret_three, thresh_three = cv2.threshold(imgray_three, 190, 255, 0)
+  # ret_four, thresh_four = cv2.threshold(imgray_four, 190, 255, 0)
 
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+  ret_final, thresh_final = cv2.threshold(imgray_final, 190, 255, 0)
+
+  # contours_one, hierarchy_one = cv2.findContours(thresh_one, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+  # contours_two, hierarchy_two = cv2.findContours(thresh_two, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+  # contours_three, hierarchy_three = cv2.findContours(thresh_three, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+  # contours_four, hierarchy_four = cv2.findContours(thresh_four, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+  contours_final, hierarchy_final = cv2.findContours(thresh_final, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+
+  # intersect_one = np.multiply(contours_one, contours_two)
+  # intersect_two = np.multiply(contours_three, contours_four)
+  # intersect_final =  np.multiply(intersect_one, intersect_two)
+
+  cv2.drawContours(img_original_one,contours_final, -1, (255,255,255), 2)
+  cv2.drawContours(img_original_two,contours_final, -1, (255,255,255), 2)
+  cv2.drawContours(img_original_three,contours_final, -1, (255,255,255), 2)
+  cv2.drawContours(img_original_four,contours_final, -1, (255,255,255), 2)
+
+  cv2.waitKey(0)
+  cv2.destroyAllWindows()
 
     # Saving the final predictions
-    os.remove(naming)
-    os.remove(naming_original)
-    cv2.imwrite(naming_original, img_original)
+  os.remove(path[0]+naming)
+  os.remove(path[1]+naming)
+  os.remove(path[2]+naming)
+  os.remove(path[3]+naming)
+
+  os.remove(path[0]+naming_original)
+  os.remove(path[1]+naming_original)
+  os.remove(path[2]+naming_original)
+  os.remove(path[3]+naming_original)
+    
+  cv2.imwrite(path[0]+naming_original, img_original_one)
+  cv2.imwrite(path[1]+naming_original, img_original_two)
+  cv2.imwrite(path[2]+naming_original, img_original_three)
+  cv2.imwrite(path[3]+naming_original, img_original_four)
